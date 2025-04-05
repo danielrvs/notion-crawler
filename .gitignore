@@ -1,3 +1,2 @@
-./sites/*.*
-./downloaded_pages/*.*
-./node_modules
+./sites/*
+./node_modules/*
