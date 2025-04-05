@@ -2,12 +2,26 @@ const puppeteer = require('puppeteer');
 const fs = require('fs-extra');
 const path = require('path');
 const axios = require('axios');
+const minimist = require('minimist');
+
+const args = minimist(process.argv.slice(3))
+const startUrl = args.start_url
+const reset = args.reset || false
+let folder = args.folder
+const maxPages = args.max || 10000
+
+if(!startUrl) {
+  console.error('Error: start_url argument is required.');
+  process.exit(1);
+}
+
+if(!folder) {
+  folder = URL.parse(startUrl).hostname
+} 
+
+
 
 (async () => {
-  // URL inicial de la página Notion
-  const startUrl = 'https://fine-road-79e.notion.site/EDN-18674ab5917980fdb259f57052a65a0d';
-  const folder = URL.parse(startUrl).hostname;
-
   // Carpeta base donde se guardarán las páginas
   const outputDir = path.join(__dirname, 'sites', folder);
   await fs.ensureDir(outputDir);
@@ -20,13 +34,16 @@ const axios = require('axios');
   const visitedFilePath = path.join(outputDir, 'visited.json');
   let visited = new Set();
   if (await fs.pathExists(visitedFilePath)) {
-    const visitedArray = await fs.readJSON(visitedFilePath);
-    visited = new Set(visitedArray);
+    if(reset) {
+      await fs.remove(visitedFilePath);
+    } else {
+      const visitedArray = await fs.readJSON(visitedFilePath);
+      visited = new Set(visitedArray);
+    }
   }
 
   const browser = await puppeteer.launch({ headless: false });
   const queue = [startUrl];
-  const maxPages = 10000; // Límite para evitar crawls infinitos
   let pageCount = 0;
 
   while (queue.length > 0 && pageCount < maxPages) {
@@ -67,78 +84,12 @@ const axios = require('axios');
 
       // Modificar enlaces de páginas y extraer datos de imágenes
       const imagesData = await page.evaluate(() => {
-        // Actualizar enlaces de <a>
-        const anchors = Array.from(document.querySelectorAll('a'));
-        anchors.forEach(a => {
-          if (a.href && a.href.includes('notion.site')) {
-            try {
-              const urlObj = new URL(a.href);
-              let fileName = urlObj.pathname;
-              if (fileName.startsWith('/')) fileName = fileName.slice(1);
-              fileName = fileName.replace(/\//g, '_') + '.html';
-              a.href = './' + fileName;
-            } catch (err) {
-              console.error(err);
-            }
-          }
-        });
-        
-        // Actualizar <img> y extraer información para descarga
-        const imageElements = Array.from(document.querySelectorAll('img'));
-        const images = [];
-        imageElements.forEach(img => {
-          const src = img.getAttribute('src');
-          if (src) {
-            try {
-              // Convertir a URL absoluta
-              let urlObj;
-              try {
-                urlObj = new URL(src);
-              } catch (e) {
-                urlObj = new URL(src, window.location.origin);
-              }
-              // Obtener nombre del archivo a partir de la última parte del pathname
-              let imageFileName = urlObj.pathname.split('/').pop() || 'image';
-              // Quitar parámetros de consulta
-              imageFileName = imageFileName.split('?')[0];
-              // Sanitizar el nombre
-              imageFileName = imageFileName.replace(/[^a-z0-9_\-\.]/gi, '_');
-              // Definir la nueva ruta local para la imagen
-              const localPath = './images/' + imageFileName;
-              img.src = localPath;
-              images.push({
-                original: urlObj.toString(),
-                local: imageFileName
-              });
-            } catch (err) {
-              console.error(err);
-            }
-          }
-        });
-        return images;
+        updateAnchorsLinksInCurrentPageToLocalRouting();
+        return updateImagesLinksInCurrentPageToLocalRouting();
       });
       
       // Descargar cada imagen extraída
-      for (const img of imagesData) {
-        const imageUrl = img.original;
-        const localImagePath = path.join(imagesDir, img.local);
-        try {
-          const response = await axios({
-            method: 'get',
-            url: imageUrl,
-            responseType: 'stream'
-          });
-          const writer = fs.createWriteStream(localImagePath);
-          response.data.pipe(writer);
-          await new Promise((resolve, reject) => {
-            writer.on('finish', resolve);
-            writer.on('error', reject);
-          });
-          console.log(`Downloaded image: ${localImagePath}`);
-        } catch (err) {
-          console.error(`Error downloading image ${imageUrl}: ${err}`);
-        }
-      }
+      downloadImage(imagesData);
 
       // Capturar el HTML modificado (con enlaces actualizados)
       const html = await page.content();
@@ -165,6 +116,81 @@ const axios = require('axios');
   console.log(`Crawling finished. Pages crawled: ${pageCount}`);
   await browser.close();
 })();
+
+function updateAnchorsLinksInCurrentPageToLocalRouting() {
+  const anchors = Array.from(document.querySelectorAll('a'));
+  anchors.forEach(a => {
+    if (a.href && a.href.includes('notion.site')) {
+      try {
+        const urlObj = new URL(a.href);
+        let fileName = urlObj.pathname;
+        if (fileName.startsWith('/')) fileName = fileName.slice(1);
+        fileName = fileName.replace(/\//g, '_') + '.html';
+        a.href = './' + fileName;
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  });
+}
+
+async function downloadImage(imagesData) {
+  for (const img of imagesData) {
+    const imageUrl = img.original;
+    const localImagePath = path.join(imagesDir, img.local);
+    try {
+      const response = await axios({
+        method: 'get',
+        url: imageUrl,
+        responseType: 'stream'
+      });
+      const writer = fs.createWriteStream(localImagePath);
+      response.data.pipe(writer);
+      await new Promise((resolve, reject) => {
+        writer.on('finish', resolve);
+        writer.on('error', reject);
+      });
+      console.log(`Downloaded image: ${localImagePath}`);
+    } catch (err) {
+      console.error(`Error downloading image ${imageUrl}: ${err}`);
+    }
+  }
+}
+
+function updateImagesLinksInCurrentPageToLocalRouting() {
+  const imageElements = Array.from(document.querySelectorAll('img'));
+  const images = [];
+  imageElements.forEach(img => {
+    const src = img.getAttribute('src');
+    if (src) {
+      try {
+        // Convertir a URL absoluta
+        let urlObj;
+        try {
+          urlObj = new URL(src);
+        } catch (e) {
+          urlObj = new URL(src, window.location.origin);
+        }
+        // Obtener nombre del archivo a partir de la última parte del pathname
+        let imageFileName = urlObj.pathname.split('/').pop() || 'image';
+        // Quitar parámetros de consulta
+        imageFileName = imageFileName.split('?')[0];
+        // Sanitizar el nombre
+        imageFileName = imageFileName.replace(/[^a-z0-9_\-\.]/gi, '_');
+        // Definir la nueva ruta local para la imagen
+        const localPath = './images/' + imageFileName;
+        img.src = localPath;
+        images.push({
+          original: urlObj.toString(),
+          local: imageFileName
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  });
+  return images;
+}
 
 // Función para hacer scroll de forma automática
 async function autoScroll(page) {

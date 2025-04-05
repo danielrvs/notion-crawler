@@ -12,6 +12,7 @@
   "dependencies": {
     "axios": "^1.8.4",
     "fs-extra": "^11.3.0",
+    "minimist": "^1.2.8",
     "notion-crawler": "^0.0.9",
     "puppeteer": "^24.4.0"
   }
