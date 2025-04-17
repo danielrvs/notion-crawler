@@ -1,19 +1,28 @@
 {
-  "name": "notion",
+  "name": "notion-crawler",
   "version": "1.0.0",
-  "main": "index.js",
+  "type": "commonjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "start": "npm run build && node dist/index.js",
+    "test": "jest"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
-    "axios": "^1.8.4",
+    "puppeteer": "^24.4.0",
     "fs-extra": "^11.3.0",
-    "minimist": "^1.2.8",
-    "notion-crawler": "^0.0.9",
-    "puppeteer": "^24.4.0"
+    "axios": "^1.8.4",
+    "minimist": "^1.2.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "jest": "^29.0.0",
+    "ts-jest": "^29.0.0",
+    "@types/jest": "^29.0.0",
+    "@types/node": "^18.0.0",
+    "@types/puppeteer": "^5.4.4",
+    "@types/fs-extra": "^9.0.13",
+    "@types/axios": "^0.14.0",
+    "@types/minimist": "^1.2.2",
+    "jsdom": "^22.0.0"
   }
 }
