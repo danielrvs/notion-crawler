@@ -8,21 +8,22 @@
     "test": "jest"
   },
   "dependencies": {
-    "puppeteer": "^24.4.0",
-    "fs-extra": "^11.3.0",
     "axios": "^1.8.4",
-    "minimist": "^1.2.8"
+    "fs-extra": "^11.3.0",
+    "minimist": "^1.2.8",
+    "puppeteer": "^24.4.0"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "jest": "^29.0.0",
-    "ts-jest": "^29.0.0",
+    "@types/axios": "^0.14.0",
+    "@types/fs-extra": "^9.0.13",
     "@types/jest": "^29.0.0",
+    "@types/minimist": "^1.2.2",
     "@types/node": "^18.0.0",
     "@types/puppeteer": "^5.4.4",
-    "@types/fs-extra": "^9.0.13",
-    "@types/axios": "^0.14.0",
-    "@types/minimist": "^1.2.2",
-    "jsdom": "^22.0.0"
+    "jest": "^29.0.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "jsdom": "^22.0.0",
+    "ts-jest": "^29.0.0",
+    "typescript": "^5.0.0"
   }
 }
